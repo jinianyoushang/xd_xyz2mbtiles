@@ -1,9 +1,7 @@
-# xyz2mbtiles
+# xd_xyz2mbtiles
 
 #### 介绍
-将xyz格式的栅格瓦片转换为单个.mbtiles文件，便于数据迁移。
-
-使用c++17写的程序
+使用c++17写的，将xyz格式的栅格瓦片转换为单个.mbtiles文件，便于数据迁移的程序。
 
 #### TODO
 
