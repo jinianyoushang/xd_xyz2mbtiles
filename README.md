@@ -5,7 +5,12 @@
 
 #### TODO
 
-目前支jpg格式文件，后续将加入支持其他格式
+1. 虽然能完成功能，里面全局变量太多了，要重构代码
+
+#### 已经完成功能
+
+1. 支持配置文件，支持所有文件格式
+2. 目前支jpg格式文件，后续将加入支持其他格式
 
 #### 软件架构
 该项目依赖sqlite（ https://github.com/sqlite/sqlite.git ）、CppSQLite3U（ http://softvoile.com/development/CppSQLite3U/ ，有些适应性修改）等，目前仅能将.jpg图片存入.mbtiles文件。
@@ -30,15 +35,10 @@
 
 #### 使用说明
 
-##### 使用说明（Windows）
-1.  复制xyz2mbtiles.exe到png格式的xyz文件所在目录。
-2.  双击xyz2mbtiles.exe启动程序，耐心等待程序运行完成。
-3.  程序运行过程中会输出一些提示信息，最后会显示总共输入多少个jpg文件。按下任意键退出运行窗口。
+##### 使用说明
+1.  修改配置文件 config.ini 中输入目录 inputDir输出目录 outputDir  匹配模式pattern，并放到和可执行文件同级目录，运行即可。
 
-##### 使用说明（Linux）
-1.  复制xyz2mbtiles到png格式的xyz文件所在目录。
-2.  ./xyz2mbtiles启动程序，耐心等待程序运行完成。
-3.  程序运行过程中会输出一些提示信息，最后会显示总共输入多少个jpg文件。
+
 
 #### 参考项目
 

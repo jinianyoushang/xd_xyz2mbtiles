@@ -15,7 +15,7 @@ std::tuple<int, int, int> ParsePath(const std::string& path, const std::string& 
     regexPattern = std::regex_replace(regexPattern, std::regex("\\{x\\}"), "(\\d+)");
     regexPattern = std::regex_replace(regexPattern, std::regex("\\{y\\}"), "(\\d+)");
 
-    regexPattern="\\.*"+regexPattern;
+    regexPattern=".*"+regexPattern;
     cout<<regexPattern<<endl;
     // 创建正则表达式
     std::regex regex(regexPattern);
@@ -39,14 +39,19 @@ std::tuple<int, int, int> ParsePath(const std::string& path, const std::string& 
 
 int main() {
     try {
-        auto [z, x, y] = ParsePath("10/534/772/tile.png", "{z}/{x}/{y}/tile.png");
-        std::cout << "Z: " << z << ", X: " << x << ", Y: " << y << std::endl;
+        {
+            auto [z, x, y] = ParsePath("10/534/772/tile.png", "{z}/{x}/{y}/tile.png");
+            std::cout << "Z: " << z << ", X: " << x << ", Y: " << y << std::endl;
+        }
+        {
+            auto [z1, x1, y1] = ParsePath("adsad/10/534/772.png", "{z}/{x}/{y}.png");
+            std::cout << "Z: " << z1 << ", X: " << x1 << ", Y: " << y1 << std::endl;
+        }
+        {
+            auto [z2, x2, y2] = ParsePath(R"(C:\Users\17632\Desktop\xyz2mbtiles\xyz2mbtiles-master\china1-6\6\53\21\tile.png)", R"({z}\\{x}\\{y}\\tile.png)");
+            std::cout << "Z: " << z2 << ", X: " << x2 << ", Y: " << y2 << std::endl;
+        }
 
-        auto [z1, x1, y1] = ParsePath("adsad/10/534/772.png", "{z}/{x}/{y}.png");
-        std::cout << "Z: " << z1 << ", X: " << x1 << ", Y: " << y1 << std::endl;
-
-        auto [z2, x2, y2] = ParsePath(R"(C:\Users\17632\Desktop\xyz2mbtiles\xyz2mbtiles-master\china1-6\6\53\21\tile.png)", R"({z}\\{x}\\{y}\\tile.png)");
-        std::cout << "Z: " << z2 << ", X: " << x2 << ", Y: " << y2 << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

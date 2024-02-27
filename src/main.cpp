@@ -9,20 +9,62 @@
 #include <regex>
 #include "CppSQLite3U.h"
 #include "showProgress.h"
-
+#include "simpleini-4.19/SimpleIni.h"
 
 using namespace std;
 namespace fs = std::filesystem;
 
 // 定义一个文件集合，包含坐标信息和文件名
 typedef vector<std::string> Files;
-vector<string> supportFiletype{".tif", ".png", ".jpg", ".pbf", ".webp", ".zlib", ".gzip"};
-string filetype;//输入的文件类型
+vector<string> supportFiletype{".tiff",".tif", ".png", ".jpg", ".pbf", ".webp", ".zlib", ".gzip"};
+string filetype; //输入的文件类型
+string inputDir;
+string outputDir;
+string pattern;
 
+void loadConfig(const string&fileName = "config.ini") {
+    CSimpleIniA ini;
+    ini.SetUnicode();
+    SI_Error rc = ini.LoadFile("config.ini");
+    if (rc < 0) {
+        /* handle error */
+        printf("ini.LoadFile error\n");
+        exit(-1);
+    }
 
+    //读取输入目录
+    const char* ini_inputDir = ini.GetValue("config", "inputDir", "");
+    if (!std::string(ini_inputDir).empty()) {
+        inputDir = ini_inputDir;
+        std::cout << "ini_inputDir " << ini_inputDir << std::endl;
+    }
+    else {
+        std::cout << "read ini file error" << std::endl;
+    }
+
+    //输出目录
+    const char* ini_ouputDir = ini.GetValue("config", "outputDir", "");
+    if (!std::string(ini_ouputDir).empty()) {
+        outputDir = ini_ouputDir;
+        std::cout << "ini_ouputDir " << ini_ouputDir << std::endl;
+    }
+    else {
+        std::cout << "outputDir is empty" << std::endl;
+        outputDir = inputDir;
+    }
+
+    const char* ini_pattern = ini.GetValue("config", "pattern", "");
+    if (!std::string(ini_pattern).empty()) {
+        pattern = ini_pattern;
+        std::cout << "ini_pattern " << ini_pattern << std::endl;
+    }
+    else {
+        std::cout << "ini_pattern is empty" << std::endl;
+    }
+}
 
 //文件路径是否支持
-bool isSupportFileType(const filesystem::path &filePath) {
+bool isSupportFileType(const filesystem::path&filePath) {
     // 获取文件的扩展名（以小写形式，以便进行不区分大小写的比较）
     std::string extension = filePath.extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -33,15 +75,16 @@ bool isSupportFileType(const filesystem::path &filePath) {
 
 //解析路径
 //返回 z x y
-std::tuple<int, int, int>
-ParsePath(const std::string &path, const std::string &pattern = R"({z}\\{x}\\{y}\\tile.jpg)") {
+//解析路径
+//返回 z x y
+std::tuple<int, int, int> ParsePath(const std::string&path, const std::string&pattern = R"({z}\\{x}\\{y}\\tile.png)") {
     // 转换模式到正则表达式
     std::string regexPattern = std::regex_replace(pattern, std::regex("\\{z\\}"), "(\\d+)");
     regexPattern = std::regex_replace(regexPattern, std::regex("\\{x\\}"), "(\\d+)");
     regexPattern = std::regex_replace(regexPattern, std::regex("\\{y\\}"), "(\\d+)");
 
-    regexPattern = "\\.*" + regexPattern;
-//    cout<<regexPattern<<endl;
+    regexPattern = ".*" + regexPattern;
+    //cout<<regexPattern<<endl;
     // 创建正则表达式
     std::regex regex(regexPattern);
     std::smatch matches;
@@ -54,24 +97,24 @@ ParsePath(const std::string &path, const std::string &pattern = R"({z}\\{x}\\{y}
             int z = std::stoi(matches[1]);
             int x = std::stoi(matches[2]);
             int y = std::stoi(matches[3]);
-            // 从文件路径中解析X, Y, Z坐标
-//            printf("z:%d x:%d y:%d p:%s\n",z,x,y,path.c_str());
             return std::make_tuple(z, x, y);
         }
     }
+
     // 如果没有找到匹配或匹配格式错误
     throw std::runtime_error("Invalid path or pattern.");
 }
 
 
 // 处理给定路径下的文件,添加到任务列表files
-void Process(const fs::path &path, Files &files) {
-    for (const auto &entry: fs::directory_iterator(path)) {
+void Process(const fs::path&path, Files&files) {
+    for (const auto&entry: fs::directory_iterator(path)) {
         if (entry.is_directory()) {
             // 如果是目录，则递归处理
             Process(entry.path(), files);
-        } else {
-            const auto &p = entry.path();
+        }
+        else {
+            const auto&p = entry.path();
             //p是文件的完整路径
             isSupportFileType(p);
             if (isSupportFileType(p)) {
@@ -79,35 +122,40 @@ void Process(const fs::path &path, Files &files) {
                 if (files.size() % 10000 == 0) {
                     cout << "counting number:" << files.size() << endl;
                 }
-                //获得文件类型
-                if (filetype.empty()) {
-                    filetype = p.extension().string();
-                    // 移除扩展名中的点
-                    if (filetype.front() == '.') {
-                        filetype.erase(0, 1); // 从索引0开始删除1个字符
-                    }
-                }
             }
         }
     }
 }
 
 
+//获得文件类型,并保存到filetype中
+void getFileType(const string&file) {
+    fs::path p(file);
+    if (filetype.empty()) {
+        filetype = p.extension().string();
+        // 移除扩展名中的点
+        if (filetype.front() == '.') {
+            filetype.erase(0, 1); // 从索引0开始删除1个字符
+        }
+    }
+}
+
 // 将瓦片数据插入数据库
-void InsertTilesToDB(CppSQLite3DB &db, const Files &files) {
+void InsertTilesToDB(CppSQLite3DB&db, const Files&files) {
     CppSQLite3Statement stmt = db.compileStatement("INSERT INTO tiles VALUES(?,?,?,?)");
     db.execDML("BEGIN TRANSACTION");
 
     int nCount = 0;
-    for (const auto &file: files) {
+    for (const auto&file: files) {
         //解析路径
         int x = -1, y = -1, z = -1;
         try {
-            auto [z_t, x_t, y_t] = ParsePath(file);//这里可以指定匹配类型
+            auto [z_t, x_t, y_t] = ParsePath(file, pattern); //这里可以指定匹配类型
             x = x_t;
             y = y_t;
             z = z_t;
-        } catch (const std::exception &e) {
+        }
+        catch (const std::exception&e) {
             std::cerr << "Error: " << e.what() << std::endl;
             continue;
         }
@@ -126,7 +174,7 @@ void InsertTilesToDB(CppSQLite3DB &db, const Files &files) {
             stmt.bind(1, z); // 绑定Z坐标
             stmt.bind(2, x); // 绑定X坐标
             stmt.bind(3, y); // 绑定Y坐标
-            stmt.bind(4, buffer.data(), (int) buffer.size()); // 绑定瓦片数据
+            stmt.bind(4, buffer.data(), (int)buffer.size()); // 绑定瓦片数据
             stmt.execDML();
 
             if (++nCount % 10000 == 0) {
@@ -138,7 +186,6 @@ void InsertTilesToDB(CppSQLite3DB &db, const Files &files) {
             if (nCount % 100 == 0) {
                 show_progress_bar(nCount, files.size(), " processing...");
             }
-
         }
     }
 
@@ -153,8 +200,9 @@ void InsertTilesToDB(CppSQLite3DB &db, const Files &files) {
 // 10/534/772/tile.png    "{z}/{x}/{y}/tile.png"
 // adsad/10/534/772.png   "{z}/{x}/{y}.png"
 int main() {
+    loadConfig();
     try {
-        fs::path currentPath = fs::current_path(); // 获取当前路径
+        fs::path currentPath = inputDir; // 获取当前路径
         Files files;
         files.reserve(100000);
         cout << "counting files" << endl;
@@ -163,10 +211,13 @@ int main() {
             cout << "no file to Process" << endl;
             return 0;
         }
+        getFileType(files.front());
         cout << "file numbers:" << files.size() << " filetype:" << filetype << endl;
 
         // 指定数据库文件名
-        fs::path dbPath = currentPath / (currentPath.filename().string() + ".mbtiles");
+        fs::path outputPath = outputDir;
+        fs::path dbPath = outputPath / (outputPath.filename().string() + ".mbtiles");
+        cout << "output filename" << dbPath << endl;
         if (fs::exists(dbPath)) {
             cout << "tiles.mbtiles exist" << endl;
             fs::remove(dbPath); // 如果数据库文件已存在，则删除
@@ -185,15 +236,17 @@ int main() {
         std::string sql = "INSERT INTO metadata (name, value) VALUES ('format', '" + filetype + "')";
         db.execDML(sql.c_str());
         db.execDML("INSERT INTO metadata (name, value) VALUES ('bounds', '-180,-85.0511,180,85.0511')");
-//        db.execDML(R"(INSERT INTO metadata (name, value) VALUES ('profile', '{"profile":"spherical-mercator"})");
+        //        db.execDML(R"(INSERT INTO metadata (name, value) VALUES ('profile', '{"profile":"spherical-mercator"})");
 
         db.execDML(
-                "CREATE TABLE tiles (zoom_level INTEGER NOT NULL, tile_column INTEGER NOT NULL, tile_row INTEGER NOT NULL, tile_data BLOB NOT NULL, UNIQUE (zoom_level, tile_column, tile_row))");
+            "CREATE TABLE tiles (zoom_level INTEGER NOT NULL, tile_column INTEGER NOT NULL, "
+            "tile_row INTEGER NOT NULL, tile_data BLOB NOT NULL, UNIQUE (zoom_level, tile_column, tile_row))");
 
         InsertTilesToDB(db, files); // 将瓦片数据插入数据库
         std::cout.flush();
         std::cout << "Completed inserting tiles.\n";
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception&e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }

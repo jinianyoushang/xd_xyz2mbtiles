@@ -12,4 +12,4 @@ if (UNIX)
 endif()
 
 #解析路径函数测试
-add_executable(testxyz test/01-testxyz.cpp)
+add_executable(01-testxyz test/01-testxyz.cpp)
