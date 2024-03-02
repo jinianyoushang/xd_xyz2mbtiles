@@ -5,12 +5,13 @@
 
 #### TODO
 
-1. 虽然能完成功能，里面全局变量太多了，要重构代码
+1. 
 
 #### 已经完成功能
 
-1. 支持配置文件，支持所有文件格式
-2. 目前支jpg格式文件，后续将加入支持其他格式
+1. 虽然能完成功能，里面全局变量太多了，要重构代码
+2. 支持配置文件，支持所有文件格式
+3. 目前支jpg格式文件，后续将加入支持其他格式
 
 #### 软件架构
 该项目依赖sqlite（ https://github.com/sqlite/sqlite.git ）、CppSQLite3U（ http://softvoile.com/development/CppSQLite3U/ ，有些适应性修改）等，目前仅能将.jpg图片存入.mbtiles文件。
