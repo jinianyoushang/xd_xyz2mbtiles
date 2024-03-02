@@ -20,7 +20,7 @@ typedef vector<std::string> Files;
 vector<string> supportFiletype{".tiff", ".tif", ".png", ".jpg", ".pbf", ".webp", ".zlib", ".gzip"};
 
 
-void loadConfig(string &inputDir, string &outputDir, string &pattern, const string &fileName = "config.ini") {
+void loadConfig(string &inputDir, string &outputDir, string &pattern, const string &configFileName = "config.ini") {
     CSimpleIniA ini;
     ini.SetUnicode();
     SI_Error rc = ini.LoadFile("config.ini");
@@ -172,8 +172,8 @@ void InsertTilesToDB(CppSQLite3DB &db, const Files &files, const string &pattern
             stmt.bind(4, buffer.data(), (int) buffer.size()); // 绑定瓦片数据
             stmt.execDML();
 
-            if (++nCount % 10000 == 0) {
-                // 每插入10000条数据，提交一次事务
+            if (++nCount % 2000 == 0) {
+                // 每插入2000条数据，提交一次事务
                 db.execDML("END TRANSACTION");
                 db.execDML("BEGIN TRANSACTION");
             }
@@ -189,6 +189,26 @@ void InsertTilesToDB(CppSQLite3DB &db, const Files &files, const string &pattern
 }
 
 
+void initDB(CppSQLite3DB &db,const fs::path &dbPath,const string&filetype){
+    db.open(dbPath.string().c_str()); // 打开数据库
+    // 创建metadata和tiles表
+    db.execDML("CREATE TABLE metadata (name TEXT, value TEXT)");
+    //插入元数据
+    /*profile	{"profile":"spherical-mercator"}
+        format	jpg
+        bounds	-180,-85.0511,180,85.0511
+     * */
+    db.execDML("INSERT INTO metadata (name, value) VALUES ('version', '1.2')");
+    std::string sql = "INSERT INTO metadata (name, value) VALUES ('format', '" + filetype + "')";
+    db.execDML(sql.c_str());
+    db.execDML("INSERT INTO metadata (name, value) VALUES ('bounds', '-180,-85.0511,180,85.0511')");
+    //        db.execDML(R"(INSERT INTO metadata (name, value) VALUES ('profile', '{"profile":"spherical-mercator"})");
+
+    db.execDML(
+            "CREATE TABLE tiles (zoom_level INTEGER NOT NULL, tile_column INTEGER NOT NULL, "
+            "tile_row INTEGER NOT NULL, tile_data BLOB NOT NULL, UNIQUE (zoom_level, tile_column, tile_row))");
+}
+
 // 将可执行程序放到xyz目录可以完成转换
 // 支持的格式如下
 // C:\Users\17632\Desktop\xyz2mbtiles\xyz2mbtiles-master\china1-6\6\56\22\tile.png   R"({z}\\{x}\\{y}\\tile.png)"
@@ -202,6 +222,7 @@ int main() {
     string inputDir;
     string outputDir;
     string pattern;
+
     loadConfig(inputDir, outputDir, pattern);
     try {
         // 获取当前路径
@@ -228,27 +249,13 @@ int main() {
             fs::remove(dbPath); // 如果数据库文件已存在，则删除
         }
 
+        //初始化数据库
         CppSQLite3DB db;
-        db.open(dbPath.string().c_str()); // 打开数据库
-        // 创建metadata和tiles表
-        db.execDML("CREATE TABLE metadata (name TEXT, value TEXT)");
-        //插入元数据
-        /*profile	{"profile":"spherical-mercator"}
-            format	jpg
-            bounds	-180,-85.0511,180,85.0511
-         * */
-        db.execDML("INSERT INTO metadata (name, value) VALUES ('version', '1.2')");
-        std::string sql = "INSERT INTO metadata (name, value) VALUES ('format', '" + filetype + "')";
-        db.execDML(sql.c_str());
-        db.execDML("INSERT INTO metadata (name, value) VALUES ('bounds', '-180,-85.0511,180,85.0511')");
-        //        db.execDML(R"(INSERT INTO metadata (name, value) VALUES ('profile', '{"profile":"spherical-mercator"})");
-
-        db.execDML(
-                "CREATE TABLE tiles (zoom_level INTEGER NOT NULL, tile_column INTEGER NOT NULL, "
-                "tile_row INTEGER NOT NULL, tile_data BLOB NOT NULL, UNIQUE (zoom_level, tile_column, tile_row))");
+        initDB(db,dbPath,filetype);
 
         // 将瓦片数据插入数据库
         InsertTilesToDB(db, files, pattern);
+        db.close();
         std::cout.flush();
         std::cout << "Completed inserting tiles.\n";
     }
@@ -262,7 +269,7 @@ int main() {
     // 计算持续时间
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     // 输出结果
-    std::cout << "Function execution took " << duration.count() << " milliseconds." << std::endl;
+    std::cout << "Execution took " << duration.count() << " milliseconds." << std::endl;
 
     return 0;
 }

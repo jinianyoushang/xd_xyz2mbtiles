@@ -39,7 +39,11 @@
 ##### 使用说明
 1.  修改配置文件 config.ini 中输入目录 inputDir输出目录 outputDir  匹配模式pattern，并放到和可执行文件同级目录，运行即可。
 
+#### 时间测试
 
+```
+14550文件 Execution took 2925 milliseconds.
+```
 
 #### 参考项目
 
